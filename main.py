@@ -86,10 +86,10 @@ def evaluation_seller(seller_cond, feedback_cond, item_cond):
 # delivary time condition
     selling_amount = seller_cond['selling_amount']
     visiting_amount = seller_cond['visiting_amount']
-
-
     time_temp = seller_cond['waiting_time']
-
+    delivery_time = seller_cond['delivery_time']
+    activate_time = seller_cond['activate_time']
+    response_rating = seller_cond['response_rating']
     if time_temp < 3600:
         response_time = 100
     elif 3600 <= time_temp < 18000:
@@ -97,20 +97,16 @@ def evaluation_seller(seller_cond, feedback_cond, item_cond):
     else:
         response_time = 20
 
-    response_rating = seller_cond['response_rating']
     response = 0.2 * response_time + 0.8 * response_rating
 
-    if seller_cond['necessary'] != 1:
-        seller = 0
+
+    necessary_conditions = ['payment_verification', 'id_registration', 'SMS_verification']
+
+    # 判断这些条件是否全部为1
+
 
     documentation_count = sum(seller_cond['unnecessary'])
     documentation = 25 * documentation_count
-
-    delivery_time = seller_cond['delivery_time']
-    activate_time = seller_cond['activate_time']
-    #return seller
-
-
 
 
     if len(selling_amount) == 1:
@@ -121,6 +117,11 @@ def evaluation_seller(seller_cond, feedback_cond, item_cond):
 
     seller_score = response + documentation + delivery_time + activate_time
 
+
+    if all(seller_cond.get(condition, 0) == 1 for condition in necessary_conditions):
+        seller_score = seller_score
+    else:
+        seller_score = 0
     return new_seller, seller_score
 
 def evaluation_feedback(seller_cond, feedback_cond, item_cond):
