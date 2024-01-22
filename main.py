@@ -45,13 +45,19 @@ def evaluation_seller(seller_cond, feedback_cond, item_cond):
     # documentation: unnecessary: face scan, linked with social media, email verification, passport submission
     # seller: last time to activate, how long,*** how many products, and their comment( this is linked with comment
     # description change: frequency of modifying, comparative verification with tags and info
-    # delivary time condition
+    # dilevary time condition
     selling_amount = seller_cond['selling_amount']
-    visiting_amount = seller_cond['visiting_amount']
     time_temp = seller_cond['waiting_time']
     delivery_time = seller_cond['delivery_time']
     activate_time = seller_cond['activate_time']
     response_rating = seller_cond['response_rating']
+    necessary_conditions = ['payment_verification','id_registration','SMS_verification']
+    # judge whether all the conditions are 1
+    face_scan = seller_cond['face_scan']
+    social_media = seller_cond['social_media']
+    email_verification = seller_cond['email_verification']
+    passport = seller_cond['passport']
+
     if time_temp < 3600:
         response_time = 100
     elif 3600 <= time_temp < 18000:
@@ -59,34 +65,42 @@ def evaluation_seller(seller_cond, feedback_cond, item_cond):
     else:
         response_time = 20
     response_time_weight = response_rating_weight = 0.5
-    response = response_time_weight*response_time + response_rating_weight * response_rating
-    
-    necessary_conditions = ['payment_verification','id_registration','SMS_verification']
-    # judge whether all the conditions are 1
-    face_scan = seller_cond['face_scan']
-    social_media = seller_cond['social_media']
-    email_verification = seller_cond['email_verification']
-    passport = seller_cond['passport']
+    #less connection between the two factors, so fixed weight
+    response_time_weight = 0.2
+    response_rating_weight = 0.8
+
+
     face_scan_weight = social_media_weight = email_verification_weight = passport_weight = 0.25
+    social_media_weight = 0.1
+    email_verification_weight = 0.1
+    face_scan_weight = 0.4
+    passport_weight = 0.4
     documentation = face_scan_weight*face_scan + social_media_weight*social_media+email_verification_weight*email_verification+passport_weight*passport
+    response = response_time_weight * response_time + response_rating_weight * response_rating
 
     if selling_amount == 0:
         new_seller = 1
     else:
         new_seller = 0
 
+    response_weight = documentation_weight = delivery_time_weight = activate_time_weight = 0.25
+
     if new_seller == 0:
-        seller_score = response + documentation + delivery_time + activate_time
-    else: seller_score = documentation
+        seller_score = response_weight*response + documentation_weight*documentation + delivery_time_weight*delivery_time + activate_time_weight*activate_time
+    else: seller_score = documentation*0.9
 
     if all(seller_cond.get(condition, 0) == 1 for condition in necessary_conditions):
         seller_score = seller_score
     else:
         seller_score = 0
-    return new_seller, seller_score
+    if (response + delivery_time + activate_time)/3<0.7:
+        seller_score = seller_score * 0.7
+    return new_seller, seller_score,response, documentation,delivery_time,activate_time
 
 def evaluation_feedback(seller_cond, feedback_cond, item_cond):
     # buyer feedback + selling condition, after_sale condition for this product
+    selling_amount = seller_cond['selling_amount']
+    visiting_amount = seller_cond['visiting_amount']
     product_rate = feedback_cond['seller_product_rate']
     non_refund_rate = seller_cond['non_refund_rate']
     non_report_rate = seller_cond['non_report_rate']
@@ -97,18 +111,18 @@ def evaluation_feedback(seller_cond, feedback_cond, item_cond):
     # keyword is also a char array, maybe 5 keywords which appear most frequently
     comment_keyword = feedback_cond['comment_keyword']
     comment_amount = feedback_cond['comment_amount']
-    non_cancel_rate_weight = non_report_rate_weight = non_refund_rate_weight = comment_amount_weight = comment_verification_rating_weight = 0.2
-    
-    feedback_score = (non_refund_rate_weight*non_refund_rate+non_report_rate_weight*non_report_rate +non_cancel_rate_weight*non_cancel_rate+product_rate+comment_amount_weight*comment_amount+comment_verification_rating_weight*comment_verification_rating)
+    non_cancel_rate_weight = non_report_rate_weight = non_refund_rate_weight = comment_amount_weight = comment_verification_rating_weight = selling_amount_weight = visiting_amount_weight = 1/7
 
-    return feedback_score, comment_keyword
+    feedback_score = (non_refund_rate_weight*non_refund_rate+non_report_rate_weight*non_report_rate +non_cancel_rate_weight*non_cancel_rate+product_rate+comment_amount_weight*comment_amount+comment_verification_rating_weight*comment_verification_rating+selling_amount_weight*selling_amount+visiting_amount_weight*visiting_amount)
+
+    return feedback_score, comment_keyword, non_cancel_rate,non_report_rate,non_refund_rate,comment_verification_rating
 
 def evaluation_item(seller_cond, feedback_cond, item_cond, common_price):
     # evaluate the item condition, price
     price_eva = evaluation_price(item_cond['item_price'], common_price)
     product_eva = 20 * item_cond['product_condition']
     item_score = (price_eva + product_eva - price_eva)
-    return item_score
+    return item_score, price_eva, product_eva
     #product_condition is to describe how new the product is, chosen from 5 stages
 
 if __name__ == '__main__':
