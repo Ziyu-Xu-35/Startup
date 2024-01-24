@@ -35,7 +35,7 @@ def evaluation(seller_cond, feedback_cond, item_cond):
     seller_score = evaluation_seller(seller_cond, feedback_cond, item_cond)
     feedback_score = evaluation_feedback(seller_cond, feedback_cond, item_cond)
     item_score = evaluation_item(seller_cond, feedback_cond, item_cond)
-    total_score = (seller_score + feedback_score + item_score)/3
+    total_score = item_score*0.3217+feedback_score*0.3543+seller_score*0.3240
     return total_score
 
 def evaluation_seller(seller_cond, feedback_cond, item_cond):
@@ -57,7 +57,11 @@ def evaluation_seller(seller_cond, feedback_cond, item_cond):
     social_media = seller_cond['social_media']
     email_verification = seller_cond['email_verification']
     passport = seller_cond['passport']
-
+    product_number_score = seller_cond['product_number_score']
+    refund_rate_score = seller_cond['refund_rate_score']
+    cancellation_score = seller_cond['cancellation_score']
+    visitors_profile_score = seller_cond['visitor_profile_score']
+    order_time_score = seller_cond['order_time_score']
     if time_temp < 3600:
         response_time = 100
     elif 3600 <= time_temp < 18000:
@@ -66,16 +70,17 @@ def evaluation_seller(seller_cond, feedback_cond, item_cond):
         response_time = 20
     response_time_weight = response_rating_weight = 0.5
     #less connection between the two factors, so fixed weight
+    face_scan_weight = social_media_weight = email_verification_weight = passport_weight = 0.25
     response_time_weight = 0.2
     response_rating_weight = 0.8
+    documentation = face_scan_weight * face_scan + social_media_weight * social_media + email_verification_weight * email_verification + passport_weight * passport
 
 
-    face_scan_weight = social_media_weight = email_verification_weight = passport_weight = 0.25
     social_media_weight = 0.1
     email_verification_weight = 0.1
     face_scan_weight = 0.4
     passport_weight = 0.4
-    documentation = face_scan_weight*face_scan + social_media_weight*social_media+email_verification_weight*email_verification+passport_weight*passport
+
     response = response_time_weight * response_time + response_rating_weight * response_rating
 
     if selling_amount == 0:
@@ -83,10 +88,16 @@ def evaluation_seller(seller_cond, feedback_cond, item_cond):
     else:
         new_seller = 0
 
-    response_weight = documentation_weight = delivery_time_weight = activate_time_weight = 0.25
-
+    response_weight = 0.1081
+    documentation_weight  = 0.1029+0.1200
+    activate_time_weight = 0.1218
+    product_number_score_weight = 0.1149
+    refund_rate_score_weight = 0.1098
+    cancellation_score_weight = 0.1166
+    visitors_profile_score_weight = 0.1029
+    order_time_score_weight = 0.1029
     if new_seller == 0:
-        seller_score = response_weight*response + documentation_weight*documentation + delivery_time_weight*delivery_time + activate_time_weight*activate_time
+        seller_score = response_weight*response + documentation_weight*documentation + activate_time_weight*activate_time+product_number_score_weight*product_number_score+refund_rate_score_weight*refund_rate_score+cancellation_score_weight*cancellation_score+visitors_profile_score_weight*visitors_profile_score+order_time_score_weight*order_time_score
     else: seller_score = documentation*0.9
 
     if all(seller_cond.get(condition, 0) == 1 for condition in necessary_conditions):
@@ -95,7 +106,7 @@ def evaluation_seller(seller_cond, feedback_cond, item_cond):
         seller_score = 0
     if (response + delivery_time + activate_time)/3<0.7:
         seller_score = seller_score * 0.7
-    return new_seller, seller_score,response, documentation,delivery_time,activate_time
+    return new_seller, seller_score
 
 def evaluation_feedback(seller_cond, feedback_cond, item_cond):
     # buyer feedback + selling condition, after_sale condition for this product
@@ -111,19 +122,47 @@ def evaluation_feedback(seller_cond, feedback_cond, item_cond):
     # keyword is also a char array, maybe 5 keywords which appear most frequently
     comment_keyword = feedback_cond['comment_keyword']
     comment_amount = feedback_cond['comment_amount']
-    non_cancel_rate_weight = non_report_rate_weight = non_refund_rate_weight = comment_amount_weight = comment_verification_rating_weight = selling_amount_weight = visiting_amount_weight = 1/7
+    non_cancel_rate_weight = non_report_rate_weight = non_refund_rate_weight = selling_amount_weight = visiting_amount_weight = (18/20)/5
+    comment_amount_weight = comment_verification_rating_weight = 1/20
 
     feedback_score = (non_refund_rate_weight*non_refund_rate+non_report_rate_weight*non_report_rate +non_cancel_rate_weight*non_cancel_rate+product_rate+comment_amount_weight*comment_amount+comment_verification_rating_weight*comment_verification_rating+selling_amount_weight*selling_amount+visiting_amount_weight*visiting_amount)
 
-    return feedback_score, comment_keyword, non_cancel_rate,non_report_rate,non_refund_rate,comment_verification_rating
+    return feedback_score, comment_keyword
 
 def evaluation_item(seller_cond, feedback_cond, item_cond, common_price):
     # evaluate the item condition, price
-    price_eva = evaluation_price(item_cond['item_price'], common_price)
-    product_eva = 20 * item_cond['product_condition']
-    item_score = (price_eva + product_eva - price_eva)
-    return item_score, price_eva, product_eva
-    #product_condition is to describe how new the product is, chosen from 5 stages
+    # Given weights
+    weights = [0.108938547, 0.089385475, 0.082402235, 0.099162011, 0.076815642, 0.104748603, 0.089385475, 0.093575419,
+               0.085195531, 0.090782123, 0.079608939]
+
+    # Given scores
+    price_score = evaluation_price(item_cond['item_price'], common_price)
+    image_score = 100 * item_cond['image']
+    video_score = 100 * item_cond['video']
+    payment_score = 100 * item_cond['payment']
+    tag_score = 100 * item_cond['tag_score']
+    update_score = 100 * item_cond['update']
+    refundability_score = 100 * item_cond['refundability']
+    used_time_score = 100 * item_cond['used_time_score']
+    tag_correspond_score = 100 * item_cond['tag_correspond']
+    visiting_number_score = 100 * item_cond['visiting_number']
+
+    # Calculate item_score
+    item_score = (
+            weights[0] * price_score +
+            weights[1] * image_score +
+            weights[2] * video_score +
+            weights[3] * payment_score +
+            weights[4] * tag_score +
+            weights[5] * update_score +
+            weights[6] * refundability_score +
+            weights[7] * used_time_score +
+            weights[8] * tag_correspond_score +
+            weights[9] * visiting_number_score
+    )
+
+    return item_score
+
 
 if __name__ == '__main__':
     print('PyCharm')
